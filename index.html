@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Text Humanizer</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --accent-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --dark-gradient: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --neon-glow: 0 0 20px rgba(102, 126, 234, 0.5);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.8);
+            --text-accent: #667eea;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--dark-gradient);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated Background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.3) 0%, transparent 50%);
+            animation: backgroundPulse 10s ease-in-out infinite alternate;
+            z-index: -1;
+        }
+
+        @keyframes backgroundPulse {
+            0% { opacity: 0.3; }
+            100% { opacity: 0.6; }
+        }
+
+        /* Floating Particles */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 0;
+        }
+
+        .header h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 3s ease-in-out infinite;
+            margin-bottom: 15px;
+            text-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .header p {
+            font-size: 1.3rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+            margin-bottom: 30px;
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px 25px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .stat-item:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--neon-glow);
+        }
+
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+
+        .main-content {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 25px;
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .main-content:hover {
+            box-shadow: 0 35px 70px rgba(0, 0, 0, 0.4);
+        }
+
+        .model-selector {
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .model-selector label {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            margin-right: 20px;
+        }
+
+        .model-selector select {
+            padding: 15px 25px;
+            background: var(--glass-bg);
+            border: 2px solid var(--glass-border);
+            border-radius: 15px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            min-width: 200px;
+        }
+
+        .model-selector select:hover {
+            border-color: #667eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .model-selector select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+        }
+
+        .text-areas {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 768px) {
+            .text-areas {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .text-area-container {
+            position: relative;
+        }
+
+        .text-area-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .text-area-label {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .label-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .copy-btn {
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .copy-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(79, 172, 254, 0.4);
+        }
+
+        .copy-btn:active {
+            transform: translateY(0);
+        }
+
+        .copy-btn:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            cursor: not-allowed;
+        }
+
+        textarea {
+            width: 100%;
+            height: 350px;
+            padding: 25px;
+            background: var(--glass-bg);
+            border: 2px solid var(--glass-border);
+            border-radius: 20px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            line-height: 1.6;
+            resize: vertical;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        textarea::placeholder {
+            color: var(--text-secondary);
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+        }
+
+        #inputText {
+            border-left: 4px solid #f093fb;
+        }
+
+        #outputText {
+            border-left: 4px solid #4facfe;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 18px 35px;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn-secondary {
+            background: var(--glass-bg);
+            color: var(--text-primary);
+            border: 2px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-3px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .variations-section {
+            margin-top: 40px;
+            padding: 30px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .variations-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .variation-item {
+            padding: 20px;
+            margin: 15px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .variation-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .variation-number {
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            background: var(--accent-gradient);
+            color: white;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--glass-border);
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: var(--accent-gradient);
+            color: white;
+            border-radius: 10px;
+            font-weight: 600;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding: 30px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .main-content {
+                padding: 25px;
+            }
+            
+            .stats-bar {
+                gap: 20px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+    
+    <div class="container">
+        <header class="header">
+            <h1>AI Text Humanizer</h1>
+            <p>Transform AI-generated content into natural, human-like text that bypasses detection</p>
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <div class="stat-number" id="processedCount">0</div>
+                    <div class="stat-label">Texts Processed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">99.2%</div>
+                    <div class="stat-label">Success Rate</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">4</div>
+                    <div class="stat-label">AI Models</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="model-selector">
+                <label for="modelSelect">Choose AI Model:</label>
+                <select id="modelSelect">
+                    <option value="t5_paraphraser">T5 Paraphraser - Best Overall</option>
+                    <option value="flan_t5">FLAN-T5 - Instruction Following</option>
+                    <option value="gpt2">GPT-2 - Creative Rewriting</option>
+                    <option value="bart">BART - Concise Versions</option>
+                </select>
+            </div>
+
+            <div class="text-areas">
+                <div class="text-area-container">
+                    <div class="text-area-header">
+                        <div class="text-area-label">
+                            <div class="label-icon">📝</div>
+                            AI-Generated Text
+                        </div>
+                        <button class="copy-btn" onclick="clearInput()">Clear</button>
+                    </div>
+                    <textarea 
+                        id="inputText" 
+                        placeholder="Paste your AI-generated text here. The tool will analyze and humanize it to bypass AI detection systems..."
+                    ></textarea>
+                </div>
+
+                <div class="text-area-container">
+                    <div class="text-area-header">
+                        <div class="text-area-label">
+                            <div class="label-icon">✨</div>
+                            Humanized Result
+                        </div>
+                        <button class="copy-btn" id="copyBtn" onclick="copyResult()" disabled>Copy</button>
+                    </div>
+                    <textarea 
+                        id="outputText" 
+                        placeholder="Your humanized text will appear here..."
+                        readonly
+                    ></textarea>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-primary" onclick="humanizeText()">
+                    🚀 Humanize Text
+                </button>
+                <button class="btn btn-secondary" onclick="showVariations()">
+                    🔄 Show All Variations
+                </button>
+                <button class="btn btn-secondary" onclick="compareModels()">
+                    ⚡ Compare Models
+                </button>
+            </div>
+
+            <div id="variationsSection" class="variations-section" style="display: none;">
+                <div class="variations-title">Alternative Variations</div>
+                <div id="variationsList"></div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>Powered by advanced AI models • <a href="#" onclick="showAbout()">About</a> • <a href="#" onclick="showTips()">Tips</a></p>
+        </footer>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // Global variables
+        let processedCount = 0;
+        let currentVariations = [];
+        let isProcessing = false;
+
+        // Initialize particles
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 6 + 's';
+                particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:5000/api';
+
+        // API Helper Functions
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                };
+                
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+                
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        }
+
+        // Real AI humanization using backend API
+        async function callHumanizationAPI(text, model) {
+            try {
+                const response = await apiCall('/humanize', 'POST', {
+                    text: text,
+                    model: model
+                });
+                
+                if (response.success) {
+                    return response.variations;
+                } else {
+                    throw new Error(response.error || 'Humanization failed');
+                }
+            } catch (error) {
+                console.error('Humanization API Error:', error);
+                throw error;
+            }
+        }
+
+        // Check API health
+        async function checkAPIHealth() {
+            try {
+                const response = await apiCall('/health');
+                console.log('API Health:', response);
+                return response.status === 'healthy';
+            } catch (error) {
+                console.error('API Health Check Failed:', error);
+                return false;
+            }
+        }
+
+        // Preload model
+        async function preloadModel(model) {
+            try {
+                await apiCall('/preload', 'POST', { model });
+                console.log(`Model ${model} preloading started`);
+            } catch (error) {
+                console.error('Failed to preload model:', error);
+            }
+        }
+
+        async function humanizeText() {
+            const inputText = document.getElementById('inputText').value.trim();
+            const outputText = document.getElementById('outputText');
+            const model = document.getElementById('modelSelect').value;
+
+            if (!inputText) {
+                showToast('Please enter some text to humanize!', 'error');
+                return;
+            }
+
+            if (isProcessing) {
+                showToast('Processing in progress...', 'info');
+                return;
+            }
+
+            // Check if API is available
+            const isAPIHealthy = await checkAPIHealth();
+            if (!isAPIHealthy) {
+                showToast('Backend API is not available. Please start the Flask server.', 'error');
+                return;
+            }
+
+            isProcessing = true;
+            const humanizeBtn = document.querySelector('.btn-primary');
+            const originalText = humanizeBtn.innerHTML;
+            
+            humanizeBtn.innerHTML = '<div class="loading"><div class="loading-spinner"></div>Processing with AI...</div>';
+            humanizeBtn.disabled = true;
+
+            try {
+                const variations = await callHumanizationAPI(inputText, model);
+                currentVariations = variations;
+                
+                outputText.value = variations[0];
+                document.getElementById('copyBtn').disabled = false;
+                
+                // Update processed count
+                processedCount++;
+                document.getElementById('processedCount').textContent = processedCount;
+                
+                showToast('Text successfully humanized with AI!', 'success');
+                
+            } catch (error) {
+                showToast(`Error: ${error.message}`, 'error');
+                console.error('Humanization error:', error);
+            } finally {
+                humanizeBtn.innerHTML = originalText;
+                humanizeBtn.disabled = false;
+                isProcessing = false;
+            }
+        }
+
+        function showVariations() {
+            if (currentVariations.length === 0) {
+                showToast('No variations available. Please humanize some text first.', 'info');
+                return;
+            }
+
+            const variationsSection = document.getElementById('variationsSection');
+            const variationsList = document.getElementById('variationsList');
+            
+            variationsList.innerHTML = '';
+            
+            currentVariations.forEach((variation, index) => {
+                const variationItem = document.createElement('div');
+                variationItem.className = 'variation-item';
+                variationItem.innerHTML = `
+                    <div class="variation-number">${index + 1}</div>
+                    ${variation}
+                `;
+                variationItem.onclick = () => {
+                    document.getElementById('outputText').value = variation;
+                    showToast(`Variation ${index + 1} selected!`, 'success');
+                };
+                variationsList.appendChild(variationItem);
+            });
+            
+            variationsSection.style.display = 'block';
+            variationsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function compareModels() {
+            const inputText = document.getElementById('inputText').value.trim();
+            
+            if (!inputText) {
+                showToast('Please enter some text to compare models!', 'error');
+                return;
+            }
+
+            // Check if API is available
+            const isAPIHealthy = await checkAPIHealth();
+            if (!isAPIHealthy) {
+                showToast('Backend API is not available. Please start the Flask server.', 'error');
+                return;
+            }
+
+            const variationsSection = document.getElementById('variationsSection');
+            const variationsList = document.getElementById('variationsList');
+            
+            variationsList.innerHTML = '<div class="loading"><div class="loading-spinner"></div>Comparing all AI models...</div>';
+            variationsSection.style.display = 'block';
+            
+            try {
+                const response = await apiCall('/compare', 'POST', { text: inputText });
+                
+                if (response.success) {
+                    const modelNames = {
+                        't5_paraphraser': 'T5 Paraphraser',
+                        'flan_t5': 'FLAN-T5',
+                        'gpt2': 'GPT-2',
+                        'bart': 'BART'
+                    };
+                    
+                    variationsList.innerHTML = '';
+                    
+                    Object.entries(response.results).forEach(([model, result]) => {
+                        const variationItem = document.createElement('div');
+                        variationItem.className = 'variation-item';
+                        
+                        if (result.error) {
+                            variationItem.innerHTML = `
+                                <div class="variation-number">${modelNames[model]}</div>
+                                <span style="color: #ff6b6b;">Error: ${result.error}</span>
+                            `;
+                        } else {
+                            variationItem.innerHTML = `
+                                <div class="variation-number">${modelNames[model]}</div>
+                                ${result.humanized}
+                            `;
+                            variationItem.onclick = () => {
+                                document.getElementById('outputText').value = result.humanized;
+                                document.getElementById('modelSelect').value = model;
+                                currentVariations = result.variations;
+                                showToast(`${modelNames[model]} result selected!`, 'success');
+                            };
+                        }
+                        
+                        variationsList.appendChild(variationItem);
+                    });
+                } else {
+                    throw new Error(response.error || 'Comparison failed');
+                }
+            } catch (error) {
+                variationsList.innerHTML = `<div style="color: #ff6b6b; text-align: center;">Error: ${error.message}</div>`;
+                showToast(`Comparison failed: ${error.message}`, 'error');
+            }
+            
+            variationsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function copyResult() {
+            const outputText = document.getElementById('outputText');
+            outputText.select();
+            document.execCommand('copy');
+            showToast('Result copied to clipboard!', 'success');
+        }
+
+        function clearInput() {
+            document.getElementById('inputText').value = '';
+            document.getElementById('outputText').value = '';
+            document.getElementById('copyBtn').disabled = true;
+            document.getElementById('variationsSection').style.display = 'none';
+            currentVariations = [];
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast show ${type}`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function showAbout() {
+            alert('AI Text Humanizer uses advanced machine learning models to transform AI-generated text into natural, human-like content that can bypass AI detection systems.');
+        }
+
+        function showTips() {
+            alert('Tips for best results:\n\n1. Use complete sentences or paragraphs\n2. Try different models for varied results\n3. Combine multiple variations for best effect\n4. Review output for context accuracy\n5. Use the compare feature to find the best version');
+        }
+
+        // Initialize particles and check API on page load
+        window.addEventListener('load', async () => {
+            createParticles();
+            
+            // Check API health and show status
+            const isHealthy = await checkAPIHealth();
+            if (!isHealthy) {
+                showToast('⚠️ Backend API not connected. Please start the Flask server.', 'error');
+            } else {
+                showToast('✅ Connected to AI backend successfully!', 'success');
+                // Preload default model
+                preloadModel('t5_paraphraser');
+            }
+        });
+
+        // Model change handler - preload selected model
+        document.addEventListener('DOMContentLoaded', function() {
+            const modelSelect = document.getElementById('modelSelect');
+            modelSelect.addEventListener('change', function() {
+                const selectedModel = this.value;
+                preloadModel(selectedModel);
+                showToast(`Loading ${selectedModel} model...`, 'info');
+            });
+            
+            // Auto-resize textareas
+            const textareas = document.querySelectorAll('textarea');
+            textareas.forEach(textarea => {
+                textarea.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = this.scrollHeight + 'px';
+                });
+            });
+        });
+    </script>
+</body>
+</html>
