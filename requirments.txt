@@ -1,1 +1,8 @@
-pip install transformers torch torchvision torchaudio pyperclip
+Flask==2.3.3
+Flask-CORS==4.0.0
+torch==2.0.1
+transformers==4.35.0
+accelerate==0.24.1
+sentencepiece==0.1.99
+protobuf==4.24.4
+gunicorn==21.2.0

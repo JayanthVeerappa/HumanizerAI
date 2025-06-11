@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import torch
@@ -371,12 +373,9 @@ if __name__ == '__main__':
     load_model('t5_paraphraser')
     
     print("✅ Server ready!")
-    print("🌐 Access at: http://localhost:5000")
-    print("📋 API Endpoints:")
-    print("   - GET  /api/health     - Health check")
-    print("   - GET  /api/models     - Available models")
-    print("   - POST /api/humanize   - Humanize text")
-    print("   - POST /api/compare    - Compare models")
-    print("   - POST /api/preload    - Preload model")
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Use environment port for production
+    port = int(os.environ.get('PORT', 5000))
+    debug_mode = os.environ.get('FLASK_ENV') != 'production'
+    
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)
