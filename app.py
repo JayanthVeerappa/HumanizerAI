@@ -12,19 +12,37 @@ import warnings
 import threading
 import time
 import os
+import sys
+import logging
 warnings.filterwarnings("ignore")
 
-# Initialize Flask app with static file serving
-app = Flask(__name__, static_folder='.')
+# Set up logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger(__name__)
+
+# Print current directory and its contents
+logger.info(f"Current directory: {os.getcwd()}")
+logger.info(f"Directory contents: {os.listdir('.')}")
+
+# Initialize Flask app with static file serving - changed to static folder approach
+app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend connection
 
+# Global model instances - loaded once when server starts
+humanizers = {}
+
 class AIHumanizer:
+    # Your existing AIHumanizer class without changes
     def __init__(self, model_choice="t5_paraphraser"):
         """
         Initialize with different pre-trained models
         Options: 't5_paraphraser', 'flan_t5', 'gpt2', 'bart'
         """
-        print(f"🤖 Loading AI Humanizer with {model_choice}...")
+        logger.info(f"Loading AI Humanizer with {model_choice}...")
         self.model_choice = model_choice
         
         if model_choice == "t5_paraphraser":
@@ -40,44 +58,44 @@ class AIHumanizer:
     
     def load_t5_paraphraser(self):
         """Load T5 model fine-tuned specifically for paraphrasing"""
-        print("📥 Loading T5 Paraphraser...")
+        logger.info("Loading T5 Paraphraser...")
         try:
             self.model_name = "ramsrigouthamg/t5_paraphraser"
             self.tokenizer = T5Tokenizer.from_pretrained(self.model_name)
             self.model = T5ForConditionalGeneration.from_pretrained(self.model_name)
-            print("✅ T5 Paraphraser loaded successfully!")
+            logger.info("T5 Paraphraser loaded successfully!")
         except Exception as e:
-            print(f"❌ Failed to load T5 Paraphraser: {e}")
+            logger.error(f"Failed to load T5 Paraphraser: {e}")
             self.load_flan_t5()  # Fallback
     
     def load_flan_t5(self):
         """Load Google's FLAN-T5 for instruction following"""
-        print("📥 Loading FLAN-T5...")
+        logger.info("Loading FLAN-T5...")
         try:
             self.model_name = "google/flan-t5-base"
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
             self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name)
-            print("✅ FLAN-T5 loaded successfully!")
+            logger.info("FLAN-T5 loaded successfully!")
         except Exception as e:
-            print(f"❌ Failed to load FLAN-T5: {e}")
+            logger.error(f"Failed to load FLAN-T5: {e}")
             raise
     
     def load_gpt2(self):
         """Load GPT-2 for text generation"""
-        print("📥 Loading GPT-2...")
+        logger.info("Loading GPT-2...")
         try:
             self.model_name = "gpt2-medium"
             self.tokenizer = GPT2Tokenizer.from_pretrained(self.model_name)
             self.model = GPT2LMHeadModel.from_pretrained(self.model_name)
             self.tokenizer.pad_token = self.tokenizer.eos_token
-            print("✅ GPT-2 loaded successfully!")
+            logger.info("GPT-2 loaded successfully!")
         except Exception as e:
-            print(f"❌ Failed to load GPT-2: {e}")
+            logger.error(f"Failed to load GPT-2: {e}")
             raise
     
     def load_bart(self):
         """Load BART for text summarization/paraphrasing"""
-        print("📥 Loading BART...")
+        logger.info("Loading BART...")
         try:
             self.pipeline = pipeline(
                 "summarization",
@@ -85,9 +103,9 @@ class AIHumanizer:
                 tokenizer="facebook/bart-large-cnn",
                 framework="pt"
             )
-            print("✅ BART loaded successfully!")
+            logger.info("BART loaded successfully!")
         except Exception as e:
-            print(f"❌ Failed to load BART: {e}")
+            logger.error(f"Failed to load BART: {e}")
             raise
     
     def humanize_with_t5(self, text):
@@ -189,13 +207,13 @@ Casual: """
             result = self.pipeline(text, max_length=150, min_length=30, do_sample=True)
             return [result[0]['summary_text']]
         except Exception as e:
-            print(f"BART error: {e}")
+            logger.error(f"BART error: {e}")
             return [text]
     
     def humanize_text(self, text):
         """Main humanization function - routes to appropriate model"""
-        print(f"\n🤖 Original: {text}")
-        print(f"🔄 Using {self.model_choice} model...")
+        logger.info(f"Original: {text}")
+        logger.info(f"Using {self.model_choice} model...")
         
         try:
             if self.model_choice == "t5_paraphraser":
@@ -209,18 +227,15 @@ Casual: """
             
             if results and results[0].strip():
                 best_result = results[0]
-                print(f"✨ Humanized: {best_result}")
+                logger.info(f"Humanized: {best_result}")
                 return best_result, results
             else:
-                print("⚠️ Model returned empty result, returning original")
+                logger.warning("Model returned empty result, returning original")
                 return text, [text]
                 
         except Exception as e:
-            print(f"❌ Error during humanization: {e}")
+            logger.error(f"Error during humanization: {e}")
             return text, [text]
-
-# Global model instances - loaded once when server starts
-humanizers = {}
 
 def load_model(model_choice):
     """Load model in background thread"""
@@ -228,41 +243,44 @@ def load_model(model_choice):
         try:
             humanizers[model_choice] = AIHumanizer(model_choice)
         except Exception as e:
-            print(f"Failed to load {model_choice}: {e}")
+            logger.error(f"Failed to load {model_choice}: {e}")
             return False
     return True
 
-# STATIC FILE ROUTES - ADD THESE
-@app.route('/')
-def serve_frontend():
-    """Serve the main HTML file"""
+# COMPLETELY REVISED STATIC FILE SERVING
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_files(path):
+    """Unified function to serve all static files and handle API requests"""
+    # Log requested path for debugging
+    logger.debug(f"Requested path: {path}")
+    
+    # For empty path, serve index.html
+    if not path or path == '/' or path == 'index.html':
+        try:
+            with open('index.html', 'r', encoding='utf-8') as f:
+                html_content = f.read()
+            
+            # Update the API URL in the HTML for production
+            if 'localhost' not in request.host:
+                html_content = html_content.replace(
+                    "const API_BASE_URL = 'http://localhost:5000/api';",
+                    "const API_BASE_URL = '/api';"
+                )
+            
+            return html_content
+        except FileNotFoundError as e:
+            logger.error(f"Error serving index.html: {e}")
+            logger.info(f"Current directory: {os.getcwd()}")
+            logger.info(f"Directory contents: {os.listdir('.')}")
+            return "index.html file not found. Please check server logs for details.", 404
+    
+    # For all other file requests, try to serve from root directory
     try:
-        with open('index.html', 'r', encoding='utf-8') as f:
-            html_content = f.read()
-        
-        # Update the API URL in the HTML for production
-        if 'localhost' not in request.host:
-            html_content = html_content.replace(
-                "const API_BASE_URL = 'http://localhost:5000/api';",
-                "const API_BASE_URL = '/api';"
-            )
-        
-        return html_content
+        return send_from_directory('.', path)
     except FileNotFoundError:
-        return "index.html file not found", 404
-
-@app.route('/favicon.ico')
-def favicon():
-    """Handle favicon requests"""
-    return '', 404
-
-@app.route('/<path:filename>')
-def serve_static_files(filename):
-    """Serve other static files"""
-    try:
-        return send_from_directory('.', filename)
-    except FileNotFoundError:
-        return f"File {filename} not found", 404
+        logger.warning(f"File {path} not found")
+        return f"File {path} not found", 404
 
 # API Routes
 @app.route('/api/health', methods=['GET'])
@@ -324,7 +342,7 @@ def humanize_text():
         })
         
     except Exception as e:
-        print(f"API Error: {e}")
+        logger.error(f"API Error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/compare', methods=['POST'])
@@ -370,7 +388,7 @@ def compare_models():
         })
         
     except Exception as e:
-        print(f"Compare API Error: {e}")
+        logger.error(f"Compare API Error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/preload', methods=['POST'])
@@ -396,27 +414,29 @@ def preload_model():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Background model loading
+def preload_default_model():
+    logger.info("Preloading default model in background...")
+    try:
+        load_model('t5_paraphraser')
+        logger.info("Default model loaded successfully!")
+    except Exception as e:
+        logger.error(f"Failed to preload default model: {e}")
+
+# Start preloading the default model in the background
+preload_thread = threading.Thread(target=preload_default_model)
+preload_thread.daemon = True
+preload_thread.start()
+
+# This only runs when the app is executed directly (not through gunicorn)
 if __name__ == '__main__':
-    print("🚀 Starting AI Humanizer API Server...")
-    print("=" * 60)
-    
-    # Preload default model
-    print("📥 Preloading default model...")
-    load_model('t5_paraphraser')
-    
-    print("✅ Server ready!")
+    logger.info("Starting AI Humanizer API Server...")
     
     # Get port from environment variable (required for Render)
     port = int(os.environ.get('PORT', 5000))
     debug_mode = os.environ.get('FLASK_ENV') != 'production'
     
-    if debug_mode:
-        print("🌐 Access at: http://localhost:5000")
-        print("📋 API Endpoints:")
-        print("   - GET  /api/health     - Health check")
-        print("   - GET  /api/models     - Available models")
-        print("   - POST /api/humanize   - Humanize text")
-        print("   - POST /api/compare    - Compare models")
-        print("   - POST /api/preload    - Preload model")
-    
+    logger.info(f"Starting server on port {port}, debug mode: {debug_mode}")
     app.run(debug=debug_mode, host='0.0.0.0', port=port)
+else:
+    logger.info("Starting AI Humanizer API Server via Gunicorn...")
