@@ -13,7 +13,24 @@ import re
 import warnings
 import threading
 import time
+
+from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
+import os
+
+app = Flask(__name__, static_folder='.')
+CORS(app)
+
+# Add route to serve the frontend
+@app.route('/')
+def serve_frontend():
+    return send_from_directory('.', 'index.html')
+
+@app.route('/<path:path>')
+def serve_static(path):
+    return send_from_directory('.', path)
 warnings.filterwarnings("ignore")
+
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend connection
@@ -223,10 +240,20 @@ Casual: """
 humanizers = {}
 
 def load_model(model_choice):
-    """Load model in background thread"""
+    """Load model with memory optimization for Render"""
     if model_choice not in humanizers:
         try:
-            humanizers[model_choice] = AIHumanizer(model_choice)
+            print(f"🔄 Loading {model_choice} with memory optimization...")
+            
+            # Set torch settings for limited memory
+            torch.set_num_threads(1)
+            
+            if model_choice == "t5_paraphraser":
+                # Use smaller model for free tier
+                humanizers[model_choice] = AIHumanizer("flan_t5")  # Fallback to smaller model
+            else:
+                humanizers[model_choice] = AIHumanizer(model_choice)
+                
         except Exception as e:
             print(f"Failed to load {model_choice}: {e}")
             return False
