@@ -1,6 +1,4 @@
-import os
-
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory, render_template_string
 from flask_cors import CORS
 import torch
 from transformers import (
@@ -13,26 +11,11 @@ import re
 import warnings
 import threading
 import time
-
-from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
 import os
-
-app = Flask(__name__, static_folder='.')
-CORS(app)
-
-# Add route to serve the frontend
-@app.route('/')
-def serve_frontend():
-    return send_from_directory('.', 'index.html')
-
-@app.route('/<path:path>')
-def serve_static(path):
-    return send_from_directory('.', path)
 warnings.filterwarnings("ignore")
 
-
-app = Flask(__name__)
+# Initialize Flask app with static file serving
+app = Flask(__name__, static_folder='.')
 CORS(app)  # Enable CORS for frontend connection
 
 class AIHumanizer:
@@ -240,24 +223,46 @@ Casual: """
 humanizers = {}
 
 def load_model(model_choice):
-    """Load model with memory optimization for Render"""
+    """Load model in background thread"""
     if model_choice not in humanizers:
         try:
-            print(f"🔄 Loading {model_choice} with memory optimization...")
-            
-            # Set torch settings for limited memory
-            torch.set_num_threads(1)
-            
-            if model_choice == "t5_paraphraser":
-                # Use smaller model for free tier
-                humanizers[model_choice] = AIHumanizer("flan_t5")  # Fallback to smaller model
-            else:
-                humanizers[model_choice] = AIHumanizer(model_choice)
-                
+            humanizers[model_choice] = AIHumanizer(model_choice)
         except Exception as e:
             print(f"Failed to load {model_choice}: {e}")
             return False
     return True
+
+# STATIC FILE ROUTES - ADD THESE
+@app.route('/')
+def serve_frontend():
+    """Serve the main HTML file"""
+    try:
+        with open('index.html', 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        # Update the API URL in the HTML for production
+        if 'localhost' not in request.host:
+            html_content = html_content.replace(
+                "const API_BASE_URL = 'http://localhost:5000/api';",
+                "const API_BASE_URL = '/api';"
+            )
+        
+        return html_content
+    except FileNotFoundError:
+        return "index.html file not found", 404
+
+@app.route('/favicon.ico')
+def favicon():
+    """Handle favicon requests"""
+    return '', 404
+
+@app.route('/<path:filename>')
+def serve_static_files(filename):
+    """Serve other static files"""
+    try:
+        return send_from_directory('.', filename)
+    except FileNotFoundError:
+        return f"File {filename} not found", 404
 
 # API Routes
 @app.route('/api/health', methods=['GET'])
@@ -401,8 +406,17 @@ if __name__ == '__main__':
     
     print("✅ Server ready!")
     
-    # Use environment port for production
+    # Get port from environment variable (required for Render)
     port = int(os.environ.get('PORT', 5000))
     debug_mode = os.environ.get('FLASK_ENV') != 'production'
+    
+    if debug_mode:
+        print("🌐 Access at: http://localhost:5000")
+        print("📋 API Endpoints:")
+        print("   - GET  /api/health     - Health check")
+        print("   - GET  /api/models     - Available models")
+        print("   - POST /api/humanize   - Humanize text")
+        print("   - POST /api/compare    - Compare models")
+        print("   - POST /api/preload    - Preload model")
     
     app.run(debug=debug_mode, host='0.0.0.0', port=port)
